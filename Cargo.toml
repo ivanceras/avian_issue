@@ -6,4 +6,4 @@ edition = "2021"
 [dependencies]
 bevy = "0.14"
 avian3d = "0.1.0"
-bevy_obj = { path = "../bevy_obj" }
+bevy_obj = { git = "https://github.com/ivanceras/bevy_obj.git" }

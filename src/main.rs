@@ -51,7 +51,7 @@ fn show_instructions(mut commands: Commands) {
     commands.spawn((
         TextBundle::from_sections([
             TextSection::new(
-                "Press [Space] to spawn objects, Right click to move camera",
+                "Press [Space] to spawn objects",
                 TextStyle {
                     font_size: 20.0,
                     ..default()

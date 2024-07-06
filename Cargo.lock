@@ -783,6 +783,7 @@ dependencies = [
 [[package]]
 name = "bevy_obj"
 version = "0.14.0"
+source = "git+https://github.com/ivanceras/bevy_obj.git#fe6e33ebc66353261c45673fe55b5137f41d6ad0"
 dependencies = [
  "bevy_app",
  "bevy_asset",
