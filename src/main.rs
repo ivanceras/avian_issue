@@ -11,11 +11,9 @@ use bevy::render::primitives::Aabb;
 use bevy::window::PresentMode;
 use bevy::window::PrimaryWindow;
 use bevy::winit::WinitWindows;
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_obj::ObjPlugin;
-use bevy_rapier3d::prelude::*;
-use bevy_sun_gizmo::SunGizmoPlugin;
-use bevy_trackball::prelude::*;
+use avian3d::prelude::*;
+use bevy::color::palettes::basic::*;
 
 #[derive(Resource, Default)]
 struct Obj {
@@ -23,15 +21,6 @@ struct Obj {
 }
 
 fn main() {
-    let mut rapier_context = RapierContext::default();
-    /*
-    rapier_context
-        .integration_parameters
-        .normalized_max_penetration_correction = 0.01;
-    rapier_context
-        .integration_parameters
-        .num_internal_stabilization_iterations = 4;
-    */
 
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
@@ -47,13 +36,8 @@ fn main() {
         .add_systems(Startup, show_instructions)
         .add_systems(Startup, load_obj)
         .add_systems(Update, spawn_obj)
-        .add_plugins(TrackballPlugin)
         .add_plugins(TemporalAntiAliasPlugin)
-        .add_plugins(WorldInspectorPlugin::new())
-        .add_plugins(SunGizmoPlugin::default())
-        .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
-        .add_plugins(RapierDebugRenderPlugin::default())
-        .insert_resource(rapier_context)
+        .add_plugins(PhysicsPlugins::default())
         .insert_resource(AmbientLight {
             color: Color::WHITE,
             brightness: 10.0,
@@ -117,12 +101,11 @@ fn setup(
     },));
 
     let target = Vec3::ZERO;
-    let eye = vec3(100.0, 200.0, 200.0);
+    let eye = vec3(100.0, 200.0, 400.0);
     let up = Vec3::Y;
-    let mut trackball = TrackballController::default();
-    trackball.input.map_wasd();
-    trackball.input.reset_key = Some(KeyCode::KeyR);
-    trackball.input.orbit_button = Some(MouseButton::Right);
+
+   let mut cam_transform = Transform::from_translation(eye);
+   cam_transform.look_at(target, up);
 
     // camera
     commands.spawn((
@@ -133,10 +116,9 @@ fn setup(
                 is_active: true,
                 ..default()
             },
+            transform: cam_transform,
             ..default()
         },
-        trackball,
-        TrackballCamera::look_at(target, eye, up),
         TemporalAntiAliasBundle::default(),
     ));
 
@@ -146,8 +128,8 @@ fn setup(
 
     // Ground
     commands.spawn((
-        RigidBody::Fixed,
-        Collider::from_bevy_mesh(&ground_mesh, &ComputedColliderShape::ConvexHull).unwrap(),
+        RigidBody::Static,
+        Collider::convex_hull_from_mesh(&ground_mesh).unwrap(),
         PbrBundle {
             mesh: meshes.add(ground_mesh),
             material: materials.add(Color::rgba(0.7, 0.7, 0.8, 0.5)),
@@ -160,12 +142,12 @@ fn setup(
     ));
 
     let side_x_collider =
-        Collider::from_bevy_mesh(&side_x_mesh, &ComputedColliderShape::ConvexHull).unwrap();
+        Collider::convex_hull_from_mesh(&side_x_mesh).unwrap();
     let side_x_handle = meshes.add(side_x_mesh);
     let westrac = materials.add(Color::rgb(1.0, 0.8, 0.067));
     // Side X
     commands.spawn((
-        RigidBody::Fixed,
+        RigidBody::Static,
         side_x_collider.clone(),
         PbrBundle {
             mesh: side_x_handle.clone(),
@@ -179,7 +161,7 @@ fn setup(
     ));
 
     commands.spawn((
-        RigidBody::Fixed,
+        RigidBody::Static,
         side_x_collider.clone(),
         PbrBundle {
             mesh: side_x_handle.clone(),
@@ -194,10 +176,10 @@ fn setup(
 
     // Side Z
     let side_z_collider =
-        Collider::from_bevy_mesh(&side_z_mesh, &ComputedColliderShape::ConvexHull).unwrap();
+        Collider::convex_hull_from_mesh(&side_z_mesh).unwrap();
     let side_z_handle = meshes.add(side_z_mesh);
     commands.spawn((
-        RigidBody::Fixed,
+        RigidBody::Static,
         side_z_collider.clone(),
         PbrBundle {
             mesh: side_z_handle.clone(),
@@ -220,21 +202,21 @@ fn spawn_obj(
     obj: Res<Obj>,
 ) {
     if keyboard_input.just_pressed(KeyCode::Space) {
+
         let colors = vec![
-            Color::RED,
-            Color::BLUE,
-            Color::PINK,
-            Color::ORANGE,
-            Color::PURPLE,
-            Color::CYAN,
+            Color::rgb(1.0, 0.0, 0.0), //red
+            Color::rgb(0.0, 1.0, 0.0), //blue
+            Color::rgb(1.0, 0.08, 0.58), //pink
+            Color::rgb(1.0, 0.65, 0.0), //orange
+            Color::rgb(0.5, 0.0, 0.5), // purple
+            Color::rgb(0.0, 1.0, 1.0), //cyan
         ];
 
         for (i, handle) in obj.handles.iter().enumerate() {
             let mesh = meshes.get(handle).unwrap();
             let aabb = mesh.compute_aabb().unwrap();
 
-            let collider_shape = ComputedColliderShape::ConvexHull;
-            if let Some(collider) = Collider::from_bevy_mesh(&mesh, &collider_shape) {
+            if let Some(collider) = Collider::convex_hull_from_mesh(&mesh) {
                 commands.spawn((
                     MaterialMeshBundle {
                         mesh: handle.clone(),
@@ -248,15 +230,6 @@ fn spawn_obj(
                     RigidBody::Dynamic,
                     collider,
                     GravityScale(20.0),
-                    Ccd::enabled(),
-                    Friction {
-                        coefficient: 20.0,
-                        combine_rule: CoefficientCombineRule::Average,
-                    },
-                    Restitution {
-                        coefficient: 0.0,
-                        combine_rule: CoefficientCombineRule::Average,
-                    },
                 ));
             }
         }
